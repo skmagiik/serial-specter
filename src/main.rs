@@ -119,6 +119,59 @@ fn read_serial_data(device: &mut Box<dyn SerialPort>, secondary_device: &mut Box
     bytes_read
 }
 
+fn print_serial_data(data_buffer: &Vec<u8>, offset: &mut usize, print_format: &PrintFormat, print_color: &str){
+    match print_format {
+        PrintFormat::ASCII => {
+            print!("{}", print_color);
+            for a in data_buffer.iter() {
+                print_ascii_char(*a as char);
+            }
+            println!("{color_reset}");
+        },
+        PrintFormat::HexDump => {
+            print!("{}", print_color);
+            let mut cur_line: Vec<u8> = vec![0; 0];
+            for a in data_buffer.iter() {
+                cur_line.push(*a);
+                if cur_line.len() == 0x10 {
+                    print_hexdump(*offset, &cur_line);
+                    *offset += 0x10;
+                    for _ in 0..0x10{
+                        cur_line.remove(0);
+                    }
+                }
+            }
+            if cur_line.len() > 0 {
+                print_hexdump(*offset, &cur_line);
+                *offset += cur_line.len();
+            }
+            cur_line.clear();
+            println!("{color_reset}");
+        },
+        PrintFormat::XXD => {
+            print!("{}", print_color);
+            let mut cur_line: Vec<u8> = vec![0; 0];
+            for a in data_buffer.iter() {
+                cur_line.push(*a);
+                if cur_line.len() == 0x10 {
+                    print_xxd(*offset, &cur_line);
+                    *offset += 0x10;
+                    for _ in 0..0x10{
+                        cur_line.remove(0);
+                    }
+                }
+            }
+            if cur_line.len() > 0 {
+                print_xxd(*offset, &cur_line);
+                *offset += cur_line.len();
+            }
+            cur_line.clear();
+            println!("{color_reset}");
+        },
+    }
+}
+
+
 fn main() {
     let args = Cli::parse();
     println!("Relaying between {:?} and {:?} @ {:?}bps", args.device_primary, args.device_secondary, args.baudrate);
@@ -161,110 +214,15 @@ fn main() {
 
         if primary_data_buffer.contains(&0x0D) || primary_data_buffer.contains(&0x0A) || (primary_data_buffer.len() > 0 && primary_time_read.elapsed() > Duration::from_millis(75)){
 
-            match args.print_format {
-                PrintFormat::ASCII => {
-                    print!("{color_green}");
-                    for a in primary_data_buffer.iter() {
-                        print_ascii_char(*a as char);
-                    }
-                    println!("{color_reset}");
-                },
-                PrintFormat::HexDump => {
-                    print!("{color_green}");
-                    let mut cur_line: Vec<u8> = vec![0; 0];
-                    for a in primary_data_buffer.iter() {
-                        cur_line.push(*a);
-                        if cur_line.len() == 0x10 {
-                            print_hexdump(primary_offset, &cur_line);
-                            primary_offset += 0x10;
-                            for _ in 0..0x10{
-                                cur_line.remove(0);
-                            }
-                        }
-                    }
-                    if cur_line.len() > 0 {
-                        print_hexdump(primary_offset, &cur_line);
-                        primary_offset += cur_line.len();
-                    }
-                    cur_line.clear();
-                    println!("{color_reset}");
-                },
-                PrintFormat::XXD => {
-                    print!("{color_green}");
-                    let mut cur_line: Vec<u8> = vec![0; 0];
-                    for a in primary_data_buffer.iter() {
-                        cur_line.push(*a);
-                        if cur_line.len() == 0x10 {
-                            print_xxd(primary_offset, &cur_line);
-                            primary_offset += 0x10;
-                            for _ in 0..0x10{
-                                cur_line.remove(0);
-                            }
-                        }
-                    }
-                    if cur_line.len() > 0 {
-                        print_xxd(primary_offset, &cur_line);
-                        primary_offset += cur_line.len();
-                    }
-                    cur_line.clear();
-                    println!("{color_reset}");
-                },
-            }
+            print_serial_data(&primary_data_buffer, &mut primary_offset, &args.print_format, color_green);
 
             primary_data_buffer.clear();
             primary_time_read = Instant::now();
         }
         if secondary_data_buffer.contains(&0x0D) || secondary_data_buffer.contains(&0x0A) || (secondary_data_buffer.len() > 0 && secondary_time_read.elapsed() > Duration::from_millis(75)){
 
-            match args.print_format {
-                PrintFormat::ASCII => {
-                    print!("{color_blue}");
-                    for a in secondary_data_buffer.iter() {
-                        print_ascii_char(*a as char);
-                    }
-                    println!("{color_reset}");
-                },
-                PrintFormat::HexDump => {
-                    print!("{color_blue}");
-                    let mut cur_line: Vec<u8> = vec![0; 0];
-                    for a in secondary_data_buffer.iter() {
-                        cur_line.push(*a);
-                        if cur_line.len() == 0x10 {
-                            print_hexdump(secondary_offset, &cur_line);
-                            secondary_offset += 0x10;
-                            for _ in 0..0x10{
-                                cur_line.remove(0);
-                            }
-                        }
-                    }
-                    if cur_line.len() > 0 {
-                        print_hexdump(secondary_offset, &cur_line);
-                        secondary_offset += cur_line.len();
-                    }
-                    cur_line.clear();
-                    println!("{color_reset}");
-                },
-                PrintFormat::XXD => {
-                    print!("{color_blue}");
-                    let mut cur_line: Vec<u8> = vec![0; 0];
-                    for a in secondary_data_buffer.iter() {
-                        cur_line.push(*a);
-                        if cur_line.len() == 0x10 {
-                            print_xxd(secondary_offset, &cur_line);
-                            secondary_offset += 0x10;
-                            for _ in 0..0x10{
-                                cur_line.remove(0);
-                            }
-                        }
-                    }
-                    if cur_line.len() > 0 {
-                        print_xxd(secondary_offset, &cur_line);
-                        secondary_offset += cur_line.len();
-                    }
-                    cur_line.clear();
-                    println!("{color_reset}");
-                },
-            }
+            print_serial_data(&secondary_data_buffer, &mut secondary_offset, &args.print_format, color_blue);
+
             secondary_data_buffer.clear();
             secondary_time_read = Instant::now();
         }
